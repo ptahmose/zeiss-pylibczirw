@@ -123,35 +123,48 @@ void CZIwriteAPI::WriteMetadata(
   // see test_DisplaySettings.cpp -> TEST(DisplaySettings,
   // WriteDisplaySettingsToDocumentAndReadFromThereAndCompare) for an
   // explanation on this process)
-  if (displaySettings.size()) {
+  if (!displaySettings.empty()) {
+    // determine the maximum channel index
+    const auto statistics = this->spWriter_->GetStatistics();
+    int size_c;
+    if (!statistics.dimBounds.TryGetInterval(DimensionIndex::C, nullptr, &size_c)) {
+      // having no C-dimension is not a "recommended" state (it is considered "problematic"),
+      //  however, we can still handle it here by assuming that there is only one channel
+      size_c = 1;
+    }
+
     DisplaySettingsPOD display_settings;
     ChannelDisplaySettingsPOD channel_display_setting;
-    for (const auto &entry : displaySettings) {
-      channel_display_setting.Clear();
-      channel_display_setting.isEnabled = entry.second.isEnabled;
-      channel_display_setting.tintingColor = entry.second.tintingColor;
-      channel_display_setting.blackPoint = entry.second.blackPoint;
-      channel_display_setting.whitePoint = entry.second.whitePoint;
-      switch (entry.second.tintingMode) {
-      case TintingModeEnum::Color:
-        channel_display_setting.tintingMode =
-            libCZI::IDisplaySettings::TintingMode::Color;
-        break;
-      case TintingModeEnum::LookUpTableExplicit:
-        channel_display_setting.tintingMode =
-            libCZI::IDisplaySettings::TintingMode::LookUpTableExplicit;
-        break;
-      case TintingModeEnum::LookUpTableWellKnown:
-        channel_display_setting.tintingMode =
-            libCZI::IDisplaySettings::TintingMode::LookUpTableWellKnown;
-        break;
-      default:
-        channel_display_setting.tintingMode =
-            libCZI::IDisplaySettings::TintingMode::None;
-        break;
-      }
-      display_settings.channelDisplaySettings[entry.first] =
-          (channel_display_setting);
+    for (const auto& entry : displaySettings) {
+      // we only add display settings for channels that are actually present in the image
+      if (entry.first < size_c) {
+        channel_display_setting.Clear();
+        channel_display_setting.isEnabled = entry.second.isEnabled;
+        channel_display_setting.tintingColor = entry.second.tintingColor;
+        channel_display_setting.blackPoint = entry.second.blackPoint;
+        channel_display_setting.whitePoint = entry.second.whitePoint;
+        switch (entry.second.tintingMode) {
+          case TintingModeEnum::Color:
+              channel_display_setting.tintingMode =
+                libCZI::IDisplaySettings::TintingMode::Color;
+              break;
+          case TintingModeEnum::LookUpTableExplicit:
+              channel_display_setting.tintingMode =
+                libCZI::IDisplaySettings::TintingMode::LookUpTableExplicit;
+              break;
+          case TintingModeEnum::LookUpTableWellKnown:
+              channel_display_setting.tintingMode =
+                libCZI::IDisplaySettings::TintingMode::LookUpTableWellKnown;
+              break;
+          default:
+              channel_display_setting.tintingMode =
+                libCZI::IDisplaySettings::TintingMode::None;
+              break;
+        }
+
+        display_settings.channelDisplaySettings[entry.first] =
+          channel_display_setting;
+        }
     }
 
     MetadataUtils::WriteDisplaySettings(
