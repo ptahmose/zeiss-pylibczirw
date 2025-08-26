@@ -468,7 +468,7 @@ def test_read(
         plane_array = czi_document.read(
             plane=plane,
             scene=scene,
-            roi=roi, 
+            roi=roi,
             zoom=zoom,
             pixel_type=pixel_type,
         )
